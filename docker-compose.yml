@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  backend:
+    image: hll-rcon-proxy
+    build: .
+    restart: always
+    volumes:
+      - ./config.toml:/config.toml
+    ports:
+      - "27015-27020:8080"
