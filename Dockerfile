@@ -14,15 +14,15 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o ./out/hll-stats-backend .
+RUN go build -o ./out/hll-rcon-proxy .
 
 # Start fresh from a smaller image
 FROM alpine:3.9
 RUN apk add ca-certificates
 
-COPY --from=build_base /build/out/hll-stats-backend /app/hll-stats-backend
+COPY --from=build_base /build/out/hll-rcon-proxy /app/hll-rcon-proxy
 
 WORKDIR /app
 
 # Run the binary program produced by `go install`
-CMD ["/app/hll-stats-backend"]
+CMD ["/app/hll-rcon-proxy"]
