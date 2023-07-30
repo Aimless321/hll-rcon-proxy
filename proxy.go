@@ -81,7 +81,7 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 		n, err := sourceConn.Read(buf[:cap(buf)])
 		if err != nil {
 			if err != io.EOF {
-				log.Error().Err(err).Msgf("Could not read from source connection (%s)", err)
+				log.Error().Err(err).Msg("Could not read from source connection")
 			}
 			return
 		}
@@ -92,7 +92,7 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 
 		nW, err := targetConn.Write(buf[:n])
 		if err != nil {
-			log.Error().Err(err).Msgf("Could not write to target connection (%s)", err)
+			log.Error().Err(err).Msg("Could not write to target connection")
 			return
 		}
 
