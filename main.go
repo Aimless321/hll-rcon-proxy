@@ -34,20 +34,20 @@ func main() {
 
 	Repository = db.NewRepository()
 
-	var proxies []Proxy
+	var proxies []*Proxy
 	proxyConf := config.SubDataMap("proxies")
 	for _, key := range proxyConf.Keys() {
 		var proxy Proxy
 		config.BindStruct(fmt.Sprintf("proxies.%s", key), &proxy)
 		proxy.ServerName = key
 
-		proxies = append(proxies, proxy)
+		proxies = append(proxies, &proxy)
 	}
 
 	var wg sync.WaitGroup
 	for _, proxy := range proxies {
 		wg.Add(1)
-		go startProxy(&wg, &proxy)
+		go startProxy(&wg, proxy)
 	}
 
 	wg.Wait()
