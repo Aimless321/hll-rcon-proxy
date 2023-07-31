@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Proxy struct {
@@ -52,23 +53,28 @@ func startProxy(wg *sync.WaitGroup, proxy *Proxy) {
 }
 
 func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
+	proxy.mu.Lock()
+
 	targetAddr, err := net.ResolveTCPAddr("tcp", proxy.Target)
 	if err != nil {
 		log.Error().Err(err).Msg("Cannot resolve target address")
 		return
 	}
 
-	proxy.mu.Lock()
 	targetConn, err := net.DialTCP("tcp", nil, targetAddr)
 	if err != nil {
+		proxy.mu.Unlock()
 		log.Error().Err(err).Msgf("Could not connect to target address: %s", targetAddr)
 		return
 	}
-	proxy.mu.Unlock()
 
 	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), proxy.ServerName)
 
 	defer targetConn.Close()
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		proxy.mu.Unlock()
+	}()
 
 	session := Session{
 		LocalConn:  sourceConn,
