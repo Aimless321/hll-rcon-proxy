@@ -19,7 +19,9 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if os.Getenv("DEBUG") != "" {
+	if os.Getenv("TRACE") != "" {
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	} else if os.Getenv("DEBUG") != "" {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 

@@ -63,7 +63,7 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 		return
 	}
 
-	log.Info().Msgf("TCP Proxy started: %s", targetAddr)
+	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), targetAddr)
 
 	defer targetConn.Close()
 
@@ -101,7 +101,9 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 			return
 		}
 
-		log.Info().Msgf("%s >>> %s (%d bytes)", sourceConn.RemoteAddr(), targetConn.RemoteAddr(), n)
+		if e := log.Trace(); e.Enabled() {
+			e.Msgf("%s >>> %s (%d bytes)", sourceConn.RemoteAddr(), targetConn.RemoteAddr(), n)
+		}
 
 		// Save RCON command to InfluxDB if it's an RCON request
 		cmd, args := readPacket(buf[:n], session)
