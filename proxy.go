@@ -13,7 +13,8 @@ type Proxy struct {
 	ServerName string
 	Source     string `mapstructure:"src"`
 	Target     string `mapstructure:"dst"`
-	mu         sync.Mutex
+	connMutex  sync.Mutex
+	pktMutex   sync.Mutex
 }
 
 type Session struct {
@@ -53,7 +54,7 @@ func startProxy(wg *sync.WaitGroup, proxy *Proxy) {
 }
 
 func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
-	proxy.mu.Lock()
+	proxy.connMutex.Lock()
 
 	targetAddr, err := net.ResolveTCPAddr("tcp", proxy.Target)
 	if err != nil {
@@ -63,7 +64,7 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 
 	targetConn, err := net.DialTCP("tcp", nil, targetAddr)
 	if err != nil {
-		proxy.mu.Unlock()
+		proxy.connMutex.Unlock()
 		log.Error().Err(err).Msgf("Could not connect to target address: %s", targetAddr)
 		return
 	}
@@ -72,8 +73,8 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 
 	defer targetConn.Close()
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-		proxy.mu.Unlock()
+		time.Sleep(15 * time.Millisecond)
+		proxy.connMutex.Unlock()
 	}()
 
 	session := Session{
@@ -86,7 +87,9 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 
 func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Session) {
 	for {
+		isLocal := sourceConn == session.LocalConn
 		buf := make([]byte, 1024*1024)
+
 		n, err := sourceConn.Read(buf[:cap(buf)])
 		if err != nil {
 			if err != io.EOF {
@@ -99,11 +102,19 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 			continue
 		}
 
+		if isLocal {
+			proxy.pktMutex.Lock()
+		}
 		nW, err := targetConn.Write(buf[:n])
 		if err != nil {
+			proxy.pktMutex.Unlock()
 			log.Error().Err(err).Msg("Could not write to target connection")
 			return
 		}
+		go func() {
+			time.Sleep(15 * time.Millisecond)
+			proxy.pktMutex.Unlock()
+		}()
 
 		if n != nW {
 			log.Error().Msgf("Could not write to target connection (expected %d bytes, got %d)", n, nW)
@@ -116,7 +127,7 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 
 		// Save RCON command to InfluxDB if it's a request
 		cmd, args := readPacket(buf[:n], session)
-		if sourceConn == session.LocalConn {
+		if isLocal {
 			if e := log.Trace(); e.Enabled() {
 				e.Msgf("Packet received: %s %s", cmd, args)
 			}
