@@ -133,9 +133,7 @@ func delayLoginPackets(lastLogin *time.Time) {
 	}
 
 	d := (25 * time.Millisecond) + (100*time.Millisecond - time.Since(*lastLogin))
-	if e := log.Debug(); e.Enabled() {
-		e.Msgf("Delayed login by %s (time since %s)", d, time.Since(*lastLogin))
-	}
+	log.Info().Msgf("Delayed login by %s (time since %s)", d, time.Since(*lastLogin))
 	time.Sleep(d)
 }
 
