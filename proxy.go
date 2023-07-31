@@ -43,19 +43,21 @@ func startProxy(wg *sync.WaitGroup, proxy *Proxy) {
 	log.Info().Msgf("Listening on %s", listenerAddr)
 
 	for {
+		proxy.connMutex.Lock()
 		conn, err := listener.Accept()
 		if err != nil {
+			proxy.connMutex.Unlock()
 			log.Error().Err(err).Msg("Cannot accept connection")
 			continue
 		}
 
 		go openServerConnection(conn, proxy)
+		time.Sleep(50 * time.Millisecond)
+		proxy.connMutex.Unlock()
 	}
 }
 
 func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
-	proxy.connMutex.Lock()
-
 	targetAddr, err := net.ResolveTCPAddr("tcp", proxy.Target)
 	if err != nil {
 		log.Error().Err(err).Msg("Cannot resolve target address")
@@ -64,7 +66,6 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 
 	targetConn, err := net.DialTCP("tcp", nil, targetAddr)
 	if err != nil {
-		proxy.connMutex.Unlock()
 		log.Error().Err(err).Msgf("Could not connect to target address: %s", targetAddr)
 		return
 	}
@@ -72,10 +73,6 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), proxy.ServerName)
 
 	defer targetConn.Close()
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		proxy.connMutex.Unlock()
-	}()
 
 	session := Session{
 		LocalConn:  sourceConn,
