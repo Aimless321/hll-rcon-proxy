@@ -9,6 +9,7 @@ import (
 	"hll-rcon-proxy/db"
 	"os"
 	"sync"
+	"time"
 )
 
 var (
@@ -16,8 +17,8 @@ var (
 )
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000"})
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if os.Getenv("TRACE") != "" {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
