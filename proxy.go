@@ -6,12 +6,14 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Proxy struct {
 	ServerName string
 	Source     string `mapstructure:"src"`
 	Target     string `mapstructure:"dst"`
+	LastLogin  time.Time
 }
 
 type Session struct {
@@ -36,6 +38,8 @@ func startProxy(wg *sync.WaitGroup, proxy Proxy) {
 	}
 
 	defer listener.Close()
+
+	proxy.LastLogin = time.Now()
 
 	log.Info().Msgf("Listening on %s", listenerAddr)
 
@@ -90,6 +94,12 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 			continue
 		}
 
+		// Save RCON command to InfluxDB if it's a request
+		cmd, args := readPacket(buf[:n], session)
+		if sourceConn == session.LocalConn && cmd == "LOGIN" {
+			delayLoginPackets(&proxy.LastLogin)
+		}
+
 		nW, err := targetConn.Write(buf[:n])
 		if err != nil {
 			log.Error().Err(err).Msg("Could not write to target connection")
@@ -106,7 +116,6 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 		}
 
 		// Save RCON command to InfluxDB if it's an RCON request
-		cmd, args := readPacket(buf[:n], session)
 		if sourceConn == session.LocalConn {
 			if e := log.Trace(); e.Enabled() {
 				e.Msgf("Packet received: %s %s", cmd, args)
@@ -115,6 +124,19 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 			Repository.WriteRCONPoint(proxy.ServerName, cmd, args, n)
 		}
 	}
+}
+
+func delayLoginPackets(lastLogin *time.Time) {
+	if time.Since(*lastLogin) > 100*time.Millisecond {
+		*lastLogin = time.Now()
+		return
+	}
+
+	d := (25 * time.Millisecond) + (100*time.Millisecond - time.Since(*lastLogin))
+	if e := log.Debug(); e.Enabled() {
+		e.Msgf("Delayed login by %s (time since %s)", d, time.Since(*lastLogin))
+	}
+	time.Sleep(d)
 }
 
 func xor(a []byte, key []byte) []byte {
