@@ -107,14 +107,19 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 		}
 		nW, err := targetConn.Write(buf[:n])
 		if err != nil {
-			proxy.pktMutex.Unlock()
+			if isLocal {
+				proxy.pktMutex.Unlock()
+			}
 			log.Error().Err(err).Msg("Could not write to target connection")
 			return
 		}
-		go func() {
-			time.Sleep(15 * time.Millisecond)
-			proxy.pktMutex.Unlock()
-		}()
+
+		if isLocal {
+			go func() {
+				time.Sleep(15 * time.Millisecond)
+				proxy.pktMutex.Unlock()
+			}()
+		}
 
 		if n != nW {
 			log.Error().Msgf("Could not write to target connection (expected %d bytes, got %d)", n, nW)
