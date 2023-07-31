@@ -73,7 +73,7 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 
 	defer targetConn.Close()
 	go func() {
-		time.Sleep(15 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		proxy.connMutex.Unlock()
 	}()
 
@@ -116,7 +116,7 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 
 		if isLocal {
 			go func() {
-				time.Sleep(15 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 				proxy.pktMutex.Unlock()
 			}()
 		}
