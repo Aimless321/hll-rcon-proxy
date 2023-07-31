@@ -47,7 +47,7 @@ func main() {
 	var wg sync.WaitGroup
 	for _, proxy := range proxies {
 		wg.Add(1)
-		go startProxy(&wg, proxy)
+		go startProxy(&wg, &proxy)
 	}
 
 	wg.Wait()

@@ -6,14 +6,13 @@ import (
 	"io"
 	"net"
 	"sync"
-	"time"
 )
 
 type Proxy struct {
-	ServerName     string
-	Source         string `mapstructure:"src"`
-	Target         string `mapstructure:"dst"`
-	LastConnection time.Time
+	ServerName string
+	Source     string `mapstructure:"src"`
+	Target     string `mapstructure:"dst"`
+	mu         sync.Mutex
 }
 
 type Session struct {
@@ -22,7 +21,7 @@ type Session struct {
 	XorKey     []byte
 }
 
-func startProxy(wg *sync.WaitGroup, proxy Proxy) {
+func startProxy(wg *sync.WaitGroup, proxy *Proxy) {
 	defer wg.Done()
 
 	listenerAddr, err := net.ResolveTCPAddr("tcp", proxy.Source)
@@ -39,8 +38,6 @@ func startProxy(wg *sync.WaitGroup, proxy Proxy) {
 
 	defer listener.Close()
 
-	proxy.LastConnection = time.Now()
-
 	log.Info().Msgf("Listening on %s", listenerAddr)
 
 	for {
@@ -50,8 +47,7 @@ func startProxy(wg *sync.WaitGroup, proxy Proxy) {
 			continue
 		}
 
-		delayNewConnection(&proxy.LastConnection)
-		go openServerConnection(conn, &proxy)
+		go openServerConnection(conn, proxy)
 	}
 }
 
@@ -62,11 +58,13 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 		return
 	}
 
+	proxy.mu.Lock()
 	targetConn, err := net.DialTCP("tcp", nil, targetAddr)
 	if err != nil {
 		log.Error().Err(err).Msgf("Could not connect to target address: %s", targetAddr)
 		return
 	}
+	proxy.mu.Unlock()
 
 	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), proxy.ServerName)
 
@@ -120,17 +118,6 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 			Repository.WriteRCONPoint(proxy.ServerName, cmd, args, n)
 		}
 	}
-}
-
-func delayNewConnection(previous *time.Time) {
-	if time.Since(*previous) > 100*time.Millisecond {
-		*previous = time.Now()
-		return
-	}
-
-	d := (25 * time.Millisecond) + (100*time.Millisecond - time.Since(*previous))
-	log.Info().Msgf("Delayed login by %s (time since %s)", d, time.Since(*previous))
-	time.Sleep(d)
 }
 
 func xor(a []byte, key []byte) []byte {
