@@ -101,13 +101,17 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 			return
 		}
 
-		if e := log.Trace(); e.Enabled() {
+		if e := log.Debug(); e.Enabled() {
 			e.Msgf("%s >>> %s (%d bytes)", sourceConn.RemoteAddr(), targetConn.RemoteAddr(), n)
 		}
 
 		// Save RCON command to InfluxDB if it's an RCON request
 		cmd, args := readPacket(buf[:n], session)
 		if sourceConn == session.LocalConn {
+			if e := log.Trace(); e.Enabled() {
+				e.Msgf("Packet received: %s %s", cmd, args)
+			}
+
 			Repository.WriteRCONPoint(proxy.ServerName, cmd, args, n)
 		}
 	}
@@ -126,7 +130,9 @@ func xor(a []byte, key []byte) []byte {
 func readPacket(buf []byte, session *Session) (string, string) {
 	if session.XorKey == nil {
 		session.XorKey = buf
-		log.Debug().Msgf("XOR key received: %b", buf)
+		if e := log.Trace(); e.Enabled() {
+			e.Msgf("XOR key received: %b", buf)
+		}
 
 		return "", ""
 	}
@@ -134,7 +140,6 @@ func readPacket(buf []byte, session *Session) (string, string) {
 	message := xor(buf, (*session).XorKey)
 	cmd := bytes.ToUpper(bytes.TrimSpace(bytes.Split(message, []byte(" "))[0]))
 	args := bytes.TrimSpace(bytes.TrimPrefix(message, bytes.Split(message, []byte(" "))[0]))
-	log.Debug().Msgf("Packet received: %s %s", cmd, args)
 
 	return string(cmd), string(args)
 }
