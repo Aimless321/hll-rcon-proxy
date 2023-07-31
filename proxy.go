@@ -67,7 +67,7 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 		return
 	}
 
-	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), targetAddr)
+	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), proxy.ServerName)
 
 	defer targetConn.Close()
 
