@@ -116,7 +116,7 @@ func ioCopy(sourceConn net.Conn, targetConn net.Conn, proxy *Proxy, session *Ses
 
 		if isLocal {
 			go func() {
-				time.Sleep(5 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 				proxy.pktMutex.Unlock()
 			}()
 		}
