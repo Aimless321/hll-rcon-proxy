@@ -52,7 +52,7 @@ func startProxy(wg *sync.WaitGroup, proxy *Proxy) {
 		}
 
 		go openServerConnection(conn, proxy)
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		proxy.connMutex.Unlock()
 	}
 }
@@ -72,6 +72,7 @@ func openServerConnection(sourceConn net.Conn, proxy *Proxy) {
 
 	log.Info().Msgf("New proxy started: %s -> %s", sourceConn.RemoteAddr(), proxy.ServerName)
 
+	defer sourceConn.Close()
 	defer targetConn.Close()
 
 	session := Session{
